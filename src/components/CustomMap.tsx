@@ -1,9 +1,8 @@
-// src/components/CustomMap.tsx
 import { useState, useRef, useEffect } from 'react';
 import { MapComponent, MapTypes } from '@neshan-maps-platform/mapbox-gl-react';
 import '@neshan-maps-platform/mapbox-gl/dist/NeshanMapboxGl.css';
-import { Property } from '../types/property.types';
-import { MapPin, List, X, Search } from 'lucide-react';
+import { Property } from '../types/property';
+import { MapPin, List, X, Search, View as View360 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 interface CustomMapProps {
@@ -32,6 +31,7 @@ export default function CustomMap({
     const [visibleProperties, setVisibleProperties] = useState<Property[]>([]);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
+    // ۱. تبدیل دیتا به فرمت استاندارد برای لایه های نشان
     const generateGeoJSON = (data: Property[]) => {
         return {
             type: 'FeatureCollection',
@@ -40,21 +40,27 @@ export default function CustomMap({
                 geometry: { type: 'Point', coordinates: [p.location.lng, p.location.lat] },
                 properties: {
                     ...p,
+                    // قیمت برای نمایش در حباب (اگر قیمت در دیتا به تومان است، اینجا به میلیارد تبدیل کن)
                     displayPrice: `${(p.price / 1000000000).toFixed(1)} میلیارد`
                 }
             }))
         };
     };
 
+    // ۲. متد به‌روزرسانی لیست آگهی‌های محدوده (با استفاده از داده‌های واقعی لایه)
     const updateVisibleList = (map: any) => {
         if (!map) return;
+        // گرفتن تمام فیچرهایی که الان در لایه نقاط انفرادی رندر شده‌اند
         const features = map.queryRenderedFeatures({ layers: ['unclustered-point-label'] });
+
         const uniqueProperties: Property[] = [];
         const seenIds = new Set();
+
         features.forEach((f: any) => {
             const p = f.properties;
             if (!seenIds.has(p.id)) {
                 seenIds.add(p.id);
+                // پارس کردن آرایه تصاویر چون در GeoJSON تبدیل به رشته می‌شود
                 const images = typeof p.images === 'string' ? JSON.parse(p.images) : p.images;
                 uniqueProperties.push({ ...p, images });
             }
@@ -76,6 +82,7 @@ export default function CustomMap({
                 clusterRadius: 50
             });
 
+            // --- شروع بخش ترسیم گرافیکی (دقیقاً مطابق کد جدیدت) ---
             const drawBubble = () => {
                 const size = 64;
                 const canvas = document.createElement('canvas');
@@ -160,7 +167,9 @@ export default function CustomMap({
                     'text-halo-width': 0.3
                 }
             });
+            // --- پایان بخش ترسیم گرافیکی ---
 
+            // مدیریت رویدادها
             map.on('moveend', () => updateVisibleList(map));
 
             map.on('click', 'clusters', async (e: any) => {
@@ -185,6 +194,7 @@ export default function CustomMap({
             map.on('mouseenter', 'clusters', () => map.getCanvas().style.cursor = 'pointer');
             map.on('mouseleave', 'clusters', () => map.getCanvas().style.cursor = '');
 
+            // مقداردهی اولیه لیست
             updateVisibleList(map);
         });
     };
@@ -256,7 +266,8 @@ export default function CustomMap({
                                                 if (pros) {
                                                     onMarkerClick(pros);
                                                 }
-                                            }}
+                                            }
+                                            }
                                             className="bg-slate-900 hover:bg-slate-800 border border-slate-800/60 rounded-3xl p-3 flex gap-4 cursor-pointer transition-all active:scale-[0.99] group text-right"
                                         >
                                             <div className="relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-950">
@@ -292,3 +303,4 @@ export default function CustomMap({
         </div>
     );
 }
+
